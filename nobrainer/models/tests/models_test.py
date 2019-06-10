@@ -7,6 +7,7 @@ from nobrainer.models.meshnet import meshnet
 from nobrainer.models.meshnet import meshnet_vwn
 from nobrainer.models.unet import unet
 from nobrainer.models.autoencoder import autoencoder
+from nobrainer.models.dcgan import dcgan
 
 def model_test(model_cls, n_classes, input_shape, kwds={}):
     """Tests for models."""
@@ -59,3 +60,22 @@ def test_autoencoder():
 
     actual_output = model.predict(x)
     assert actual_output.shape == x.shape
+
+
+def test_dcgan():
+    """Special test for dcgan."""
+
+    output_shape = (1,32,32,32,1)
+    z_dim = 32
+    z = np.random.random((1,z_dim))
+
+    pred_shape = (1,8,8,8,1)
+
+    generator, discriminator = dcgan(output_shape[1:], z_dim=z_dim)
+    generator.compile(tf.train.AdamOptimizer(), 'mse')
+    discriminator.compile(tf.train.AdamOptimizer(), 'mse')
+
+    fake_images = generator.predict(z)
+    fake_pred = discriminator.predict(fake_images)
+
+    assert fake_images.shape == output_shape and fake_pred.shape == pred_shape
