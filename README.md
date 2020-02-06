@@ -21,6 +21,7 @@ The _Nobrainer_ project is supported by NIH R01 EB020470 and is distributed unde
 - [Using pre-trained networks](#using-pre-trained-networks)
   - [Predicting a brainmask for a T1-weighted brain scan](#predicting-a-brainmask-for-a-t1-weighted-brain-scan)
   - [Transfer learning](#transfer-learning)
+    - [Example](#example)
 - [Data augmentation](#data-augmentation)
   - [Random rigid transformation](#random-rigid-transformation)
 - [Package layout](#package-layout)
@@ -34,11 +35,13 @@ Please refer to the Jupyter notebooks in the [guide](/guide) directory to get st
 
 ### Container
 
-We recommend using the official _Nobrainer_ Docker container, which includes all of the dependencies necessary to use the framework. Please see the available images on [DockerHub](https://hub.docker.com/r/kaczmarj/nobrainer)
+We recommend using the official _Nobrainer_ Docker container, which includes all of the dependencies necessary to use the framework. 
+If you are new to Docker, [you can start here](https://www.docker.com/get-started))
+Please see the available _Nobrainer_ images on [DockerHub](https://hub.docker.com/r/kaczmarj/nobrainer). 
 
 #### GPU support
 
-The _Nobrainer_ containers with GPU support use CUDA 10, which requires Linux NVIDIA drivers `>=410.48`. These drivers are not included in the container.
+The _Nobrainer_ containers with GPU support use CUDA 10, which requires Linux NVIDIA drivers `>=410.48`. These drivers are not included in the container, but can be obtained from [here](https://www.nvidia.com/object/unix.html)
 
 ```
 $ docker pull kaczmarj/nobrainer:latest-gpu
@@ -64,20 +67,28 @@ $ pip install --no-cache-dir nobrainer[gpu]
 
 ## Using pre-trained networks
 
-Pre-trained networks are available in the [_Nobrainer_ models](https://github.com/neuronets/nobrainer-models) repository. Prediction can be done on the command-line with `nobrainer predict` or in Python.
+Pre-trained networks are available in the [_Nobrainer_ models](https://github.com/neuronets/nobrainer-models/releases) repository as releases and can be downloaded into the working directory. 
+
+```bash
+# Specify release version and model name
+git clone https://github.com/neuronets/nobrainer-models
+RELEASE=0.1
+MODEL_NAME=brain-extraction-unet-128iso-model.h5
+wget https://github.com/neuronets/nobrainer-models/releases/download/$RELEASE/$MODEL_NAME -P nobrainer-models
+```
 
 ### Predicting a brainmask for a T1-weighted brain scan
 
 In the following examples, we will use a 3D U-Net trained for brain extraction and documented in [_Nobrainer_ models](https://github.com/neuronets/nobrainer-models#brain-extraction).
 
-In the base case, we run the T1w scan through the model for prediction.
+In the base case, we run the T1w scan through the model for prediction using Docker in the working directory.
 
 ```bash
-# Get sample T1w scan.
+# Get sample T1w scan and run docker
 wget -nc https://dl.dropbox.com/s/g1vn5p3grifro4d/T1w.nii.gz
 docker run --rm -v $PWD:/data kaczmarj/nobrainer \
   predict \
-    --model=/models/brain-extraction-unet-128iso-model.h5 \
+    --model=/data/nobrainer-models/brain-extraction-unet-128iso-model.h5 \
     --verbose \
     /data/T1w.nii.gz \
     /data/brainmask.nii.gz
@@ -86,11 +97,11 @@ docker run --rm -v $PWD:/data kaczmarj/nobrainer \
 For binary segmentation where we expect one predicted region, as is the case with brain extraction, we can reduce false positives by removing all predictions not connected to the largest contiguous label.
 
 ```bash
-# Get sample T1w scan.
+# Get sample T1w scan and run docker
 wget -nc https://dl.dropbox.com/s/g1vn5p3grifro4d/T1w.nii.gz
 docker run --rm -v $PWD:/data kaczmarj/nobrainer \
   predict \
-    --model=/models/brain-extraction-unet-128iso-model.h5 \
+    --model=/data/nobrainer-models/brain-extraction-unet-128iso-model.h5 \
     --largest-label \
     --verbose \
     /data/T1w.nii.gz \
@@ -100,11 +111,11 @@ docker run --rm -v $PWD:/data kaczmarj/nobrainer \
 Because the network was trained on randomly rotated data, it should be agnostic to orientation. Therefore, we can rotate the volume, predict on it, undo the rotation in the prediction, and average the prediction with that from the original volume. This can lead to a better overall prediction but will at least double the processing time. To enable this, use the flag `--rotate-and-predict` in `nobrainer predict`.
 
 ```bash
-# Get sample T1w scan.
+# Get sample T1w scan and run docker
 wget -nc https://dl.dropbox.com/s/g1vn5p3grifro4d/T1w.nii.gz
 docker run --rm -v $PWD:/data kaczmarj/nobrainer \
   predict \
-    --model=/models/brain-extraction-unet-128iso-model.h5 \
+    --model=/data/nobrainer-models/brain-extraction-unet-128iso-model.h5 \
     --rotate-and-predict \
     --verbose \
     /data/T1w.nii.gz \
@@ -114,11 +125,11 @@ docker run --rm -v $PWD:/data kaczmarj/nobrainer \
 Combining the above, we can usually achieve the best brain extraction by using `--rotate-and-predict` in conjunction with `--largest-label`.
 
 ```bash
-# Get sample T1w scan.
+# Get sample T1w scan and run docker
 wget -nc https://dl.dropbox.com/s/g1vn5p3grifro4d/T1w.nii.gz
 docker run --rm -v $PWD:/data kaczmarj/nobrainer \
   predict \
-    --model=/models/brain-extraction-unet-128iso-model.h5 \
+    --model=/data/nobrainer-models/brain-extraction-unet-128iso-model.h5 \
     --largest-label \
     --rotate-and-predict \
     --verbose \
@@ -128,7 +139,9 @@ docker run --rm -v $PWD:/data kaczmarj/nobrainer \
 
 ### Transfer learning
 
-The pre-trained models can be used for transfer learning. To avoid forgetting important information in the pre-trained model, you can apply regularization to the kernel weights and also use a low learning rate. For more information, please see the _Nobrainer_ guide notebook on transfer learning.
+The pre-trained models can be used for transfer learning. To avoid forgetting important information in the pre-trained model, you can apply regularization to the kernel weights and also use a low learning rate. For more information, please see the [_Nobrainer_ guide notebook](/guide/transfer_learning.ipynb) on transfer learning.
+
+#### Example
 
 As an example of transfer learning, [@kaczmarj](https://github.com/kaczmarj) re-trained a brain extraction model to label meningiomas in 3D T1-weighted, contrast-enhanced MR scans. The original model is publicly available and was trained on 10,000 T1-weighted MR brain scans from healthy participants. These were all research scans (i.e., non-clinical) and did not include any contrast agents. The meningioma dataset, on the other hand, was composed of relatively few scans, all of which were clinical and used gadolinium as a contrast agent. You can observe the differences in contrast below.
 
