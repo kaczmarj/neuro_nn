@@ -1,6 +1,8 @@
 """Volumetric affine transformations implemented in TensorFlow."""
 
 import tensorflow as tf
+import numpy as np
+import collections
 
 
 def warp_features_labels(features, labels, matrix, scalar_label=False):
@@ -321,6 +323,7 @@ def _get_voxels(volume, coords):
         | (coords[:, 1] > cols)
         | (coords[:, 2] > depth)
     )
+    
     xflat = tf.multiply(xflat, tf.cast(tf.logical_not(outofframe), xflat.dtype))
 
     return xflat
